@@ -1,0 +1,43 @@
+//To add a custom column in the WordPress admin "Users" page that displays whether a user has placed an order in WooCommerce and their order count
+
+// Add a new column to the Users page
+add_filter('manage_users_columns', 'add_orders_column_to_users');
+function add_orders_column_to_users($columns) {
+    $columns['user_orders'] = 'Orders';
+    return $columns;
+}
+
+// Populate the new column with order data
+add_filter('manage_users_custom_column', 'display_user_orders_column', 10, 3);
+function display_user_orders_column($output, $column_name, $user_id) {
+    if ($column_name === 'user_orders') {
+        // Get the count of orders for the user
+        $order_count = wc_get_customer_order_count($user_id);
+
+        if ($order_count > 0) {
+            $output = '<a href="' . admin_url('edit.php?post_type=shop_order&customer=' . $user_id) . '">'
+                    . $order_count . ' Orders</a>';
+        } else {
+            $output = 'No Orders';
+        }
+    }
+    return $output;
+}
+
+// Make the Orders column sortable
+add_filter('manage_users_sortable_columns', 'make_orders_column_sortable');
+function make_orders_column_sortable($sortable_columns) {
+    $sortable_columns['user_orders'] = 'user_orders';
+    return $sortable_columns;
+}
+
+// Sort users by order count
+add_action('pre_get_users', 'sort_users_by_order_count');
+function sort_users_by_order_count($query) {
+    if (!is_admin() || $query->get('orderby') !== 'user_orders') {
+        return;
+    }
+
+    $query->set('meta_key', '_order_count');
+    $query->set('orderby', 'meta_value_num');
+}
